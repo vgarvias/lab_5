@@ -1,0 +1,52 @@
+import RPi.GPIO as GPIO
+import time
+
+GPIO.setmode(GPIO.BCM)
+
+dac = [26, 19, 13, 6, 5, 11, 9, 10]
+leds = [21, 20, 16, 12, 7, 8, 25, 24]
+guess = [1, 0, 0, 0, 0, 0, 0, 0]
+comp = 4
+troyka = 17
+max = 3.3
+bits = 8
+levels = 2**bits
+voltage = 0
+
+GPIO.setup(dac, GPIO.OUT)
+GPIO.setup(leds, GPIO.OUT)
+GPIO.setup(troyka, GPIO.OUT, initial = 1)
+GPIO.setup(comp, GPIO.IN)
+
+def decimal2binary(value):
+    return [int(bit) for bit in bin(value)[2:].zfill(8)]
+
+def adc():
+    guess = [0,0,0,0,0,0,0,0]
+    for i in range (bits):
+        guess[i] = 1
+        GPIO.output(dac, guess)
+        time.sleep(0.1)
+        value = GPIO.input(comp)
+        if value == 0:
+            guess[i] = 0
+        else:
+            guess[i] = 1
+    return guess[0] * 128 + guess[1]*64 + guess[2]*32 + guess[3]*16 + guess[4]*8 + guess[5]*4 + guess[6]*2 + guess[7]
+
+try:
+    while True:
+        voltage = adc()
+        print('voltage is {:.2f}'.format(voltage*max/levels, voltage))
+        num = round(bits/levels*voltage)
+        print(num)
+        GPIO.output(leds, decimal2binary(2**num-1))
+        time.sleep(0.1)
+
+except KeyboardInterrupt:
+    print('/nStop')
+
+finally:
+    GPIO.output(dac, 0)
+    GPIO.output(troyka, 0)
+    GPIO.cleanup()
